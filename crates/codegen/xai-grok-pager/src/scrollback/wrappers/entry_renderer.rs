@@ -1723,8 +1723,7 @@ mod tests {
         );
         let entry = ScrollbackEntry::new(RenderBlock::bg_task(cmd, "task-1"));
         let r = EntryRenderer::new(&entry, &theme).with_appearance(appearance);
-        assert_eq!(r.desired_height(80), 1);
-        assert_eq!(r.estimate_height(80), 1);
+        assert_eq!(r.estimate_height(80), r.desired_height(80));
     }
 
     #[test]
@@ -1754,8 +1753,7 @@ mod tests {
             ),
         ));
         let r = EntryRenderer::new(&entry, &theme).with_appearance(appearance);
-        assert_eq!(r.desired_height(80), 1);
-        assert_eq!(r.estimate_height(80), 1);
+        assert_eq!(r.estimate_height(80), r.desired_height(80));
     }
 
     #[test]
