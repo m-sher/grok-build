@@ -439,7 +439,10 @@ impl<'a> EntryRenderer<'a> {
         // NOT their (often huge) hidden body. Use the ENTRY-level foldability
         // (`block.is_foldable()` OR attached hooks), matching the fold path, so a
         // hook-only-foldable collapsed entry isn't over-counted.
-        let lines = if self.entry.display_mode != DisplayMode::Expanded && self.entry.is_foldable()
+        // BgTask / Subagent likewise always paint one line, though not foldable.
+        let lines = if self.entry.block.is_bg_task()
+            || self.entry.block.is_subagent()
+            || (self.entry.display_mode != DisplayMode::Expanded && self.entry.is_foldable())
         {
             1
         } else {
@@ -1701,6 +1704,58 @@ mod tests {
             "entry-level foldability must change the collapsed estimate \
              (plain {plain_est} vs hooked {hooked_est})"
         );
+    }
+
+    #[test]
+    fn bg_task_estimate_matches_exact_one_line_despite_long_command() {
+        let _theme = pin_theme();
+        let theme = Theme::current();
+        let appearance = AppearanceConfig {
+            show_timestamps: false,
+            ..Default::default()
+        };
+        let cmd = format!(
+            "bash -lc '{}'",
+            (0..40)
+                .map(|i| format!("echo line{i} {}", "x".repeat(80)))
+                .collect::<Vec<_>>()
+                .join("; ")
+        );
+        let entry = ScrollbackEntry::new(RenderBlock::bg_task(cmd, "task-1"));
+        let r = EntryRenderer::new(&entry, &theme).with_appearance(appearance);
+        assert_eq!(r.desired_height(80), 1);
+        assert_eq!(r.estimate_height(80), 1);
+    }
+
+    #[test]
+    fn subagent_estimate_matches_exact_one_line_despite_long_description() {
+        let _theme = pin_theme();
+        let theme = Theme::current();
+        let appearance = AppearanceConfig {
+            show_timestamps: false,
+            ..Default::default()
+        };
+        let desc = format!(
+            "Investigate {} and report findings",
+            (0..30)
+                .map(|i| format!("module{i}_{}", "x".repeat(40)))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        let entry = ScrollbackEntry::new(RenderBlock::Subagent(
+            crate::scrollback::blocks::SubagentBlock::started(
+                desc,
+                "child-session-1",
+                "explore",
+                None,
+                None,
+                None,
+                true,
+            ),
+        ));
+        let r = EntryRenderer::new(&entry, &theme).with_appearance(appearance);
+        assert_eq!(r.desired_height(80), 1);
+        assert_eq!(r.estimate_height(80), 1);
     }
 
     #[test]
